@@ -1,0 +1,7 @@
+.data/
+.interviewer/
+.idea/
+payments.generated.jsonl
+*.out
+*.prof
+.DS_Store
