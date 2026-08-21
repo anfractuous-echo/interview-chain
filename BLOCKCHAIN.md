@@ -1,15 +1,15 @@
-# Toy Blockchain Contract
+# Контракт toy blockchain
 
-The node is deliberately smaller than a real blockchain. These rules are the complete domain contract.
+Эта node намеренно гораздо проще настоящего blockchain. Перечисленные правила являются полным domain contract.
 
-## Accounts and amounts
+## Аккаунты и суммы
 
-- Accounts have an address and a balance.
-- Amounts are positive signed 64-bit integers in smallest units.
-- One display unit equals 1,000,000 smallest units.
-- The node is authoritative for balance validation.
-- There are no nonces, fees, reorgs, or confirmation depth after inclusion.
-- `GET /accounts/{address}` reports balances from mined blocks. Pending transactions reserve funds for validation but do not change the reported balance.
+- У аккаунта есть address и balance.
+- Amount является положительным signed 64-bit integer в smallest units.
+- Одна отображаемая единица равна 1 000 000 smallest units.
+- Node является authoritative системой для проверки balance.
+- Nonce, fee, reorg и confirmation depth после inclusion отсутствуют.
+- `GET /accounts/{address}` возвращает balances из выпущенных blocks. Pending transactions резервируют средства для validation, но не меняют отображаемый balance.
 
 ## Transaction
 
@@ -24,13 +24,13 @@ The node is deliberately smaller than a real blockchain. These rules are the com
 }
 ```
 
-The canonical payload is the UTF-8 JSON encoding of this fixed field order, with no extra whitespace:
+Canonical payload является UTF-8 JSON в фиксированном порядке полей и без дополнительного whitespace:
 
 ```json
 {"version":1,"payment_id":"pay-001","from":"alice","to":"bob","amount_units":12340000}
 ```
 
-The transaction package exposes `CanonicalPayload`, which produces these bytes.
+Пакет transaction экспортирует `CanonicalPayload`, который создаёт эти bytes.
 
 Toy signature:
 
@@ -44,49 +44,49 @@ Transaction ID:
 id = hex(SHA256(canonical_payload || 0x00 || raw_signature_bytes))
 ```
 
-The node knows the fixture secrets so it can verify the toy signature. This is not a real public-key signature scheme.
+Node знает fixture secrets и может проверить toy signature. Это не настоящая public-key signature scheme.
 
-## Submission and mining
+## Submission и mining
 
-When `POST /transactions` succeeds, the node immediately:
+При успешном `POST /transactions` node сразу:
 
-1. verifies the transaction ID and signature;
-2. checks accounts, available balance, and receiver overflow, including transactions already pending;
-3. reserves the balance change;
-4. adds the transaction to the in-memory pending pool.
+1. проверяет transaction ID и signature;
+2. проверяет accounts, доступный balance и overflow у receiver с учётом уже pending transactions;
+3. резервирует изменение balances;
+4. добавляет transaction в in-memory pending pool.
 
-The response does not wait for a block and has status `pending`. The same transaction ID with exactly the same payload is an idempotent duplicate. Reusing an existing ID with a different payload is a conflict.
+Ответ не ждёт выпуска block и содержит status `pending`. Повтор с той же transaction ID и полностью идентичным payload является идемпотентным. Использование существующей ID с другим payload является конфликтом.
 
-By default the node mines one block every 10 seconds. Each block contains all transactions accepted since the previous block, in acceptance order. When the pending pool is empty, the node still mines an empty block. All transactions in a mined block become `included`, their reserved balance changes become visible, and they share the block height.
+По умолчанию node выпускает один block каждые 10 секунд. В него входят все transactions, принятые после предыдущего block, в порядке приёма. Если pending pool пуст, node всё равно выпускает пустой block. После выпуска transactions получают status `included`, зарезервированные изменения balances становятся видимыми, а все transactions из block получают одну height.
 
-Blocks are final and returned in ascending height order. The node stores everything in memory, so restarting it creates a new chain from the wallet fixture.
+Blocks являются final и возвращаются по возрастанию height. Node хранит всё в памяти, поэтому restart создаёт новую chain из wallet fixture.
 
-Block hashes use the ordered transaction IDs:
+Block hash учитывает упорядоченные transaction IDs:
 
 ```text
 hash = hex(SHA256(previous_hash || 0x00 || decimal_height ||
                   0x00 || transaction_id_1 || ... || 0x00 || transaction_id_N))
 ```
 
-An empty block hashes only `previous_hash || 0x00 || decimal_height`.
+Для пустого block hash вычисляется только из `previous_hash || 0x00 || decimal_height`.
 
 ## REST API
 
 ### `POST /transactions`
 
-- `202 Accepted`: accepted into the pending pool.
-- `200 OK`: exact duplicate already pending or included.
-- `400 Bad Request`: malformed transaction, invalid ID, or invalid signature.
-- `404 Not Found`: unknown account.
-- `409 Conflict`: insufficient balance or conflicting transaction ID.
+- `202 Accepted`: transaction принята в pending pool.
+- `200 OK`: идентичная transaction уже находится в pending pool или включена в block.
+- `400 Bad Request`: некорректная transaction, ID или signature.
+- `404 Not Found`: неизвестный account.
+- `409 Conflict`: недостаточный balance или конфликтующая transaction ID.
 
-Pending response:
+Ответ для pending transaction:
 
 ```json
 {"transaction_id":"...","status":"pending","duplicate":false}
 ```
 
-An included duplicate also contains its block height:
+Ответ для уже included duplicate также содержит block height:
 
 ```json
 {"transaction_id":"...","status":"included","block_height":7,"duplicate":true}
@@ -94,26 +94,26 @@ An included duplicate also contains its block height:
 
 ### `GET /transactions/{id}`
 
-Returns a pending transaction without `block_height`:
+Для pending transaction возвращает ответ без `block_height`:
 
 ```json
 {"transaction":{},"status":"pending"}
 ```
 
-After mining it returns `status: "included"` and `block_height`. An unknown transaction returns `404`.
+После mining возвращает `status: "included"` и `block_height`. Для неизвестной transaction возвращает `404`.
 
 ### `GET /accounts/{address}`
 
-Returns `{"address":"alice","balance_units":1000000}`, or `404`.
+Возвращает `{"address":"alice","balance_units":1000000}` либо `404`.
 
 ### `GET /blocks?after_height=N&limit=M`
 
-Returns blocks strictly after `N`, up to `M` entries:
+Возвращает blocks строго после `N`, не более `M` записей:
 
 ```json
 {"blocks":[],"next_height":0,"has_more":false}
 ```
 
-`next_height` is the last returned height, or the supplied `after_height` when the page is empty. The maximum page size is 1,000.
+`next_height` равен height последнего возвращённого block либо переданному `after_height`, если page пуста. Максимальный размер page равен 1 000.
 
-`transactions` is an empty JSON array for an empty block. A non-empty block may contain multiple transactions.
+Для пустого block поле `transactions` является пустым JSON array. Непустой block может содержать несколько transactions.

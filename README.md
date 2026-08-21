@@ -1,55 +1,55 @@
 # Interview Chain
 
-This repository models a small payment pipeline:
+Этот репозиторий моделирует небольшой платёжный pipeline:
 
 ```text
 payments.jsonl -> payment sender -> toy blockchain -> indexer -> SQLite
 ```
 
-The system is intentionally compact. Read the code as if it were a small internal production service. Be ready to explain what you would change, why it matters, and what trade-offs your change introduces.
+Система намеренно сделана компактной. Читайте код как небольшой внутренний production-сервис. Будьте готовы объяснить, что вы изменили бы, почему это важно и какие компромиссы создаёт ваше изменение.
 
-## Components
+## Компоненты
 
-### Input data
+### Входные данные
 
-`input-data/payments.jsonl` is the external payment input. Each line describes one payment with a stable `payment_id`, sender, receiver, and decimal amount. `input-data/wallet.json` contains the toy accounts, signing secrets, and genesis balances used by the local node.
+`input-data/payments.jsonl` является внешним источником платежей. Каждая строка описывает один платёж со стабильным `payment_id`, отправителем, получателем и decimal-суммой. В `input-data/wallet.json` находятся тестовые аккаунты, signing secrets и genesis balances для локальной node.
 
 ### Payment sender
 
-`payment-sender` imports the JSONL file into its own SQLite database, builds a stable signed transaction for each payment, submits it to the node, and records that the node accepted it. Its local database is also used when the process restarts, so a retry can reuse the transaction that was already materialized instead of creating a different identity.
+`payment-sender` импортирует JSONL в собственную SQLite-базу, строит стабильную подписанную transaction для каждого платежа, отправляет её в node и записывает факт принятия. Та же локальная база используется после restart, поэтому retry может повторно использовать уже materialized transaction, а не создавать новую identity.
 
 ### Toy blockchain
 
-`toy-chain` is an in-memory node with a small REST API. It validates transaction IDs, toy signatures, accounts, and available balances. A valid `POST /transactions` is accepted immediately into a pending pool. By default the node mines one block every 10 seconds. A block contains every transaction accumulated since the previous block, or an empty transaction list when nothing was submitted. Balances change when the block is mined.
+`toy-chain` является in-memory node с небольшим REST API. Она проверяет transaction ID, toy signature, аккаунты и доступные balances. Корректный `POST /transactions` сразу помещает transaction в pending pool. По умолчанию node выпускает один block каждые 10 секунд. В block входят все transaction, накопленные после предыдущего block, либо пустой список, если новых transaction нет. Balances изменяются при выпуске block.
 
-Restarting the node resets its in-memory chain, pending pool, and balances to the wallet fixture.
+После restart node теряет in-memory chain и pending pool, а balances возвращаются к wallet fixture.
 
 ### Indexer
 
-`indexer` polls blocks from the node and writes blocks and their transactions into a separate SQLite database. Empty blocks are valid and must still be indexed. The indexer keeps a checkpoint so it can continue after a restart without reading the complete chain every time.
+`indexer` опрашивает node и записывает blocks вместе с их transactions в отдельную SQLite-базу. Пустые blocks являются корректными и тоже должны индексироваться. Checkpoint позволяет продолжить после restart без повторного чтения всей chain.
 
-At startup, the indexer logs the checkpoint and counts already present in its database. After each successful fetch, it logs the saved block range, batch counts, its new checkpoint, and the node height when it has caught up. The configured fetch limit is only the maximum number of blocks requested in one HTTP call.
+При запуске indexer пишет в log checkpoint и counts, уже находящиеся в его database. После каждого успешного fetch он показывает сохранённый диапазон blocks, batch counts, новый checkpoint и height node, когда он её догнал. Fetch limit является только максимальным числом blocks в одном HTTP-запросе.
 
-## Candidate implementation
+## Что реализует кандидат
 
-The starter repository contains three functions for the candidate to implement:
+В starter-репозитории оставлены три функции:
 
-- `ReadPaymentFile` reads and validates the JSONL input, converts decimal amounts into smallest units, and preserves the source line information needed by the importer.
-- `BuildSignedTransaction` follows `BLOCKCHAIN.md` to create the canonical toy signature and stable transaction ID.
-- `ProcessPayment` materializes a transaction durably, submits that exact transaction to the node, and records the accepted submission while remaining safe to replay.
+- `ReadPaymentFile` читает и проверяет JSONL, переводит decimal-суммы в smallest units и сохраняет данные исходной строки, необходимые importer;
+- `BuildSignedTransaction` следует `BLOCKCHAIN.md`, чтобы построить canonical toy signature и стабильный transaction ID;
+- `ProcessPayment` надёжно materialize-ит transaction, отправляет именно сохранённый объект в node и записывает факт принятия с учётом replay.
 
-The surrounding parser contracts, SQLite stores, HTTP clients, CLIs, node, and indexer are already present. The repository compiles before these functions are implemented and reports a clear error when the missing path is reached.
+Окружающие контракты parser, SQLite stores, HTTP clients, CLI, node и indexer уже существуют. Репозиторий компилируется до реализации этих функций и возвращает понятную ошибку при достижении недостающего кода.
 
-## Requirements
+## Требования
 
-- Go 1.24 or newer
+- Go 1.24 или новее
 - Make
 
-No Docker, external database, or blockchain knowledge is required. The blockchain contract is documented in [BLOCKCHAIN.md](BLOCKCHAIN.md).
+Docker, внешняя база данных и предварительное знание blockchain не требуются. Контракт blockchain описан в [BLOCKCHAIN.md](BLOCKCHAIN.md).
 
-## Run
+## Запуск
 
-Start each long-running process in its own terminal:
+Запустите каждый долгоживущий процесс в отдельном терминале:
 
 ```bash
 make chain
@@ -57,13 +57,13 @@ make indexer
 make sender
 ```
 
-The chain logs every mined block. The first block appears approximately 10 seconds after startup even when no transactions were submitted. The interval can be changed for local experiments:
+Chain пишет в log каждый выпущенный block. Первый block появляется примерно через 10 секунд после запуска, даже если transaction не поступали. Для локальных экспериментов интервал можно изменить:
 
 ```bash
 go run ./cmd/toy-chain -listen :8080 -wallet input-data/wallet.json -block-interval 1s
 ```
 
-Useful commands:
+Полезные команды:
 
 ```bash
 make test
@@ -74,14 +74,14 @@ make scenario-restart
 make clean
 ```
 
-Runtime SQLite files are written to `.data/`.
+Runtime-файлы SQLite записываются в `.data/`.
 
-## Input
+## Входные данные
 
-Each line in `input-data/payments.jsonl` is one payment:
+Каждая строка `input-data/payments.jsonl` является отдельным платежом:
 
 ```json
 {"payment_id":"pay-001","from":"alice","to":"bob","amount":"12.340000"}
 ```
 
-Input amounts support up to six decimal places. Inside the system they use a fixed scale of 1,000,000 smallest units per display unit. Account keys and genesis balances are provided in `input-data/wallet.json`; they are example input data, not real secrets.
+Входные суммы поддерживают до шести знаков после точки. Внутри системы используется фиксированный scale: 1 000 000 smallest units на одну отображаемую единицу. Ключи аккаунтов и genesis balances находятся в `input-data/wallet.json`. Это понятные примеры входных данных, а не настоящие секреты.
