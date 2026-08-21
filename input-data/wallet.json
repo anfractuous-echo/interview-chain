@@ -1,0 +1,8 @@
+{
+  "accounts": [
+    {"address": "alice", "secret": "alice-demo-secret", "balance_units": 1000000000000},
+    {"address": "bob", "secret": "bob-demo-secret", "balance_units": 0},
+    {"address": "carol", "secret": "carol-demo-secret", "balance_units": 1000000000000},
+    {"address": "dave", "secret": "dave-demo-secret", "balance_units": 0}
+  ]
+}

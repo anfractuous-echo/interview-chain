@@ -1,0 +1,10 @@
+{"payment_id":"pay-001","from":"alice","to":"bob","amount":"12.340000"}
+{"payment_id":"pay-002","from":"carol","to":"dave","amount":"1.000001"}
+{"payment_id":"pay-003","from":"alice","to":"dave","amount":"7.500000"}
+{"payment_id":"pay-004","from":"carol","to":"bob","amount":"0.250000"}
+{"payment_id":"pay-005","from":"alice","to":"bob","amount":"100.000000"}
+{"payment_id":"pay-006","from":"carol","to":"dave","amount":"3.141592"}
+{"payment_id":"pay-007","from":"alice","to":"dave","amount":"0.000001"}
+{"payment_id":"pay-008","from":"carol","to":"bob","amount":"42.420000"}
+{"payment_id":"pay-009","from":"alice","to":"bob","amount":"9.990000"}
+{"payment_id":"pay-010","from":"carol","to":"dave","amount":"8.125000"}
